@@ -1,25 +1,34 @@
 #include "hardware.h"
 #include <ncurses.h>
+#include <time.h>
 void updateDisplay(unsigned short instruction[])
 {
-    /* Clear the screen. */
-    erase();
+    /*  clear();
+      initscr();
+      erase();*/
     for (int i = 0; i < HEIGHT; i++)
+    {
+        puts("");
         for (int j = 0; j < WIDTH; j++)
-        {
-            if (display[i][j] == OFF)
-                mvaddch(i, j, ' ');
+            printf(" %d ", display[i][j]);
+    }
+    /* for (int i = 0; i < WIDTH; i++)
+         for (int j = 0; j < HEIGHT; j++)
+         {
+             if (display[i][j] == OFF)
+                 mvaddch(i, j, ' ');
 
-            else
-                // black box
-                mvaddch(i, j, ' ' | A_REVERSE);
-        }
+             else
+                 // black box
+                 mvaddch(i, j, ' ' | A_REVERSE);
+         }*/
 
-    printw("\n%d\n %d \n %d %d %d %d %d\n   pc = %d \n", delay_timer,
-           instruction[0], instruction[1], instruction[2], instruction[3],
-           instruction[4], instruction[5], program_counter);
+    /* printw("\n%d\n %d \n %d %d %d %d %d\n   pc = %d \n", delay_timer,
+            I, X, Y, N, NN, NNN, program_counter);*/
     /* Refresh the screen. */
     refresh();
+    sleep(1);
+    endwin();
 }
 
 void clearScreen()

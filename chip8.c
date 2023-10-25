@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 
-unsigned short program_counter = 0;
+unsigned short program_counter = RESERVED_MEMORY;
 unsigned short stack_index = 0;
 unsigned short index_register = 0;
 unsigned short processor_clock = 0;
@@ -15,7 +15,7 @@ unsigned short sound_timer = 0;
 
 unsigned char memory[MEMSIZE] = {0};
 unsigned short program_stack[STACK_SIZE];
-unsigned char display[HEIGHT][WIDTH] = {0};
+unsigned char display[WIDTH][HEIGHT] = {0};
 unsigned char registers[REGISTER_NUMBER] = {0};
 
 void exit_error(char *errorMessage)
@@ -26,73 +26,65 @@ void exit_error(char *errorMessage)
     exit(EXIT_FAILURE);
 }
 
-void *delayTimer(void *vargp)
-{
-    // sleep((float) 1.0 / (float)DELAY_TIMER);
-    sleep(2);
-    if (delay_timer == 90)
-        delay_timer = 0;
-    else
-        delay_timer++;
-    return 0;
-}
-
 void createMatrix()
 {
-    int c = 1;
-    for (int i = 0; i < HEIGHT; i++, c++)
-        for (int j = 0; j < WIDTH; j++, c++)
-            if (c % 2 == 0)
-                display[i][j] = ON;
-}
 
-void invertColors()
-{
-    sleep(1);
-    for (int i = 0; i < HEIGHT; i++)
-        for (int j = 0; j < WIDTH; j++)
-        {
-            if (display[i][j] == ON)
-                display[i][j] = OFF;
-            else
-                display[i][j] = ON;
-        }
+    clearScreen();
 }
 
 int fetch(unsigned short instruction[])
 {
-    program_counter += 1;
+
     if (program_counter >= MEMSIZE)
     {
         return ERROR;
     }
-    /* memory[0] = 108; // 0110 1100
-     memory[1] = 229; //1110 0101 */
 
-    instruction[I] = memory[program_counter] >> 4;  // 6
-    instruction[X] = memory[program_counter] & 0xf; // 12
+    I = memory[program_counter] >> 4;
+    X = memory[program_counter] & 0xf;
+    Y = memory[program_counter + 1] >> 4;
+    N = memory[program_counter + 1] & 0xf;
 
-    program_counter += 1;
-
-    instruction[Y] = memory[program_counter] >> 4;  // 14
-    instruction[N] = memory[program_counter] & 0xf; // 5
-
-    instruction[NN] = memory[program_counter]; // 229
-    instruction[NNN] = (instruction[X] << 8) ^ instruction[NN];
-
+    NN = memory[program_counter + 1];
+    NNN = (X << 8) ^ NN;
+    program_counter += 2;
     return 0;
+}
+
+void create_sprite(unsigned char sprite[], int memoryIndex)
+{
+    int i;
+    unsigned short sprite_data = memory[memoryIndex];
+    printf("sprite_data = %x\n", sprite_data);
+    for (i = 0; i < 8; i++)
+        sprite[i] = 0;
+
+    i = 7;
+    while (sprite_data > 0)
+    {
+        sprite[i] = sprite_data % 2;
+        sprite_data = sprite_data >> 1;
+        i--;
+    }
+    for (i = 0; i < 8; i++)
+        printf(" %d ", sprite[i]);
 }
 
 int execute(unsigned short instruction[])
 {
 
-    switch (instruction[I])
+    switch (I)
     {
     case 0:
-        clearScreen();
+        if (NNN == 0)
+            program_counter = RESERVED_MEMORY;
+
+        else
+            clearScreen();
         break;
     case 1:
-        program_counter = instruction[NNN];
+        updateDisplay(instruction);
+        program_counter = NNN;
         break;
     case 2:
         stack_index++;
@@ -101,25 +93,79 @@ int execute(unsigned short instruction[])
             exit_error("Stack Overflow");
         }
         program_stack[stack_index] = program_counter;
-        program_counter = instruction[NNN];
+        program_counter = NNN;
         break;
     case 6:
-        registers[instruction[X]] = instruction[NN];
+        registers[X] = NN;
         break;
     case 7:
-        registers[instruction[X]] += instruction[NN];
+        registers[X] += NN;
         break;
     case 0xA:
-        index_register = instruction[NNN];
+        index_register = NNN;
         break;
+
+    /* It will draw an N pixels tall sprite from the memory location
+    that the I index register is holding to the screen,
+    at the horizontal X coordinate in VX and the Y coordinate in VY.*/
     case 0xD:
+        /*x coordinate is the VX value modulo 64*/
+
+        printf("index_register = %x memory = %x\n", index_register, memory[index_register]);
+
+        unsigned short x = registers[X] & 63;
+        unsigned short y = registers[Y] & 31;
+        printf("x = %d y = %d\n", x, y);
+        /*sets VF to 0*/
+        registers[0xF] = 0;
+        int i, j;
+        unsigned char sprite[8];
+        create_sprite(sprite, index_register);
+        for (i = 0; i < 8; i++)
+            printf(" %d ", sprite[i]);
+        i = 0;
+
+        while (i < N && y < HEIGHT)
+        {
+
+            j = 0;
+            x = registers[X] & 63;
+            while (x < WIDTH && j < 8)
+            {
+                if (display[y][x] == ON && sprite[j] == ON)
+                {
+                    display[y][x] = OFF;
+                    registers[0xf] = 1;
+                }
+                else if (sprite[j] == ON && display[x][y] == OFF)
+                {
+                    display[y][x] = ON;
+                }
+                x++;
+                j++;
+                //  printf("x = %d, y = %d, i = %d, j = %d\n", x, y, i, j);
+            }
+            y++;
+            i++;
+        }
+
         updateDisplay(instruction);
         break;
 
     default:
+        puts("\n\n\nDEFAULT \n\n\n");
         break;
     }
     return 0;
+}
+
+void printInstruction(unsigned short instruction[])
+{
+    erase();
+    printf("\nI: %02x\nX: %02x\nY: %02x\nN: %02x\nNN: %02x\nNNN: %02x\n",
+           I, X, Y, N, NN, NNN);
+    printf("program coutner inside instruction display = %d\n", program_counter);
+    refresh();
 }
 
 int main(int argc, char **argv)
@@ -129,7 +175,7 @@ int main(int argc, char **argv)
 
     /* Start curses. Also sets LINES and COLS. */
     // createMatrix();
-    initscr();
+    // initscr();
 
     /* Pass every character immediately, not buffered. */
     // cbreak();
@@ -143,7 +189,7 @@ int main(int argc, char **argv)
         // find file size and load program
         fseek(file, 0, SEEK_END);
         file_size = ftell(file);
-        printf("ROM size: %d\n", file_size);
+        // printf("ROM size: %d\n", file_size);
         rewind(file);
 
         // return error if file is too large or cannot be found
@@ -154,26 +200,37 @@ int main(int argc, char **argv)
         }*/
 
         // read program into memory
-        fread(memory, 1, file_size, file);
+        unsigned char program_code[MEMSIZE];
+        fread(program_code, 1, file_size, file);
+        /*first 512 bits are reserved*/
+        for (int i = 0; i < file_size; i++)
+            memory[i + RESERVED_MEMORY] = program_code[i];
         fclose(file);
-        /* for (int i = 0; i < MEMSIZE; i++)
-             printf("%x ", memory[i]);
-         exit_error(".");
-         return 0;*/
+        for (int i = RESERVED_MEMORY; i < file_size + RESERVED_MEMORY; i += 2)
+        {
+            printf("posição %x: ", i);
+            printf("%02x %02x\n", memory[i], memory[i + 1]);
+        }
+        /*exit_error(".");
+        return 0;*/
     }
+    createMatrix();
 
     do
     {
 
         // divided in 4 nibbles
+        // puts("start");
         unsigned short instruction[6];
 
         if (fetch(instruction) == ERROR)
             exit_error("Memory Error");
 
+        printInstruction(instruction);
         execute(instruction);
+        // printf("program counter = %d\n", program_counter);
 
-        usleep(100000);
+        // sleep(1);
         delayTimeAccumulator += 1;
         processorTimeAccumulator += 1;
         if (delayTimeAccumulator == 4)
@@ -185,8 +242,8 @@ int main(int argc, char **argv)
             delay_timer = 0;
         if (processorTimeAccumulator == 2)
         {
-            // invertColors();
-            updateDisplay(instruction);
+            // invertColors();sleep
+            // updateDisplay(instruction);
             processorTimeAccumulator = 0;
         }
     } while (TRUE); // c != 'Q' && c != 'q');
