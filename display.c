@@ -1,36 +1,50 @@
 #include "hardware.h"
 #include <ncurses.h>
-#include <time.h>
-void updateDisplay(unsigned short instruction[])
+#include <unistd.h>
+void updateDisplay()
 {
     /*  clear();
       initscr();
       erase();*/
+    printf("  0");
+    for (int i = 0; i < 13; i++)
+        printf("%6d ", i * 5 + 5);
     for (int i = 0; i < HEIGHT; i++)
     {
-        puts("");
+        printf("\n%2d |", i);
         for (int j = 0; j < WIDTH; j++)
-            printf(" %d ", display[i][j]);
+        {
+            if (j % 5 == 0 && j != 0)
+                printf("| ");
+            if (display[i][j] == 0)
+                printf("*");
+            else
+                printf("X");
+            if (j == WIDTH - 1)
+                printf("|");
+        }
     }
-    /* for (int i = 0; i < WIDTH; i++)
-         for (int j = 0; j < HEIGHT; j++)
-         {
-             if (display[i][j] == OFF)
-                 mvaddch(i, j, ' ');
-
-             else
-                 // black box
-                 mvaddch(i, j, ' ' | A_REVERSE);
-         }*/
-
-    /* printw("\n%d\n %d \n %d %d %d %d %d\n   pc = %d \n", delay_timer,
-            I, X, Y, N, NN, NNN, program_counter);*/
-    /* Refresh the screen. */
-    refresh();
-    sleep(1);
-    endwin();
+    // usleep(50000);
 }
 
+void updateDisplayNCurses()
+{
+    clear();
+    initscr();
+    erase();
+    for (int i = 0; i < HEIGHT; i++)
+        for (int j = 0; j < WIDTH; j++)
+        {
+            if (display[i][j] == OFF)
+                mvaddch(i, j, ' ');
+
+            else
+                // black box
+                mvaddch(i, j, ' ' | A_REVERSE);
+        }
+    refresh();
+    usleep(50000);
+}
 void clearScreen()
 {
     for (int i = 0; i < HEIGHT; i++)

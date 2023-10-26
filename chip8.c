@@ -12,10 +12,11 @@ unsigned short index_register = 0;
 unsigned short processor_clock = 0;
 unsigned short delay_timer = 0;
 unsigned short sound_timer = 0;
+int display_calls = 0;
 
 unsigned char memory[MEMSIZE] = {0};
 unsigned short program_stack[STACK_SIZE];
-unsigned char display[WIDTH][HEIGHT] = {0};
+unsigned char display[HEIGHT][WIDTH] = {0};
 unsigned char registers[REGISTER_NUMBER] = {0};
 
 void exit_error(char *errorMessage)
@@ -55,7 +56,7 @@ void create_sprite(unsigned char sprite[], int memoryIndex)
 {
     int i;
     unsigned short sprite_data = memory[memoryIndex];
-    printf("sprite_data = %x\n", sprite_data);
+    // printf("sprite_data = %x\n", sprite_data);
     for (i = 0; i < 8; i++)
         sprite[i] = 0;
 
@@ -66,8 +67,6 @@ void create_sprite(unsigned char sprite[], int memoryIndex)
         sprite_data = sprite_data >> 1;
         i--;
     }
-    for (i = 0; i < 8; i++)
-        printf(" %d ", sprite[i]);
 }
 
 int execute(unsigned short instruction[])
@@ -83,7 +82,6 @@ int execute(unsigned short instruction[])
             clearScreen();
         break;
     case 1:
-        updateDisplay(instruction);
         program_counter = NNN;
         break;
     case 2:
@@ -109,51 +107,55 @@ int execute(unsigned short instruction[])
     that the I index register is holding to the screen,
     at the horizontal X coordinate in VX and the Y coordinate in VY.*/
     case 0xD:
+
         /*x coordinate is the VX value modulo 64*/
 
-        printf("index_register = %x memory = %x\n", index_register, memory[index_register]);
+        // printf("index_register = %x memory = %x\n", index_register, memory[index_register]);
 
         unsigned short x = registers[X] & 63;
         unsigned short y = registers[Y] & 31;
-        printf("x = %d y = %d\n", x, y);
+        //  printf("x = %d y = %d\n", x, y);
         /*sets VF to 0*/
         registers[0xF] = 0;
         int i, j;
         unsigned char sprite[8];
-        create_sprite(sprite, index_register);
-        for (i = 0; i < 8; i++)
-            printf(" %d ", sprite[i]);
-        i = 0;
 
+        i = 0;
         while (i < N && y < HEIGHT)
         {
-
+            create_sprite(sprite, index_register + i);
+            for (int k = 0; k < 8; k++)
+                printf(" %d ", sprite[k]);
             j = 0;
             x = registers[X] & 63;
             while (x < WIDTH && j < 8)
             {
                 if (display[y][x] == ON && sprite[j] == ON)
                 {
+                    // puts("aqui1");
                     display[y][x] = OFF;
                     registers[0xf] = 1;
                 }
-                else if (sprite[j] == ON && display[x][y] == OFF)
+                else if (sprite[j] == ON && display[y][x] == OFF)
                 {
+                    // puts("aqui2");
+                    /*printf("x = %d y = %d\n", x, y);*/
                     display[y][x] = ON;
                 }
                 x++;
                 j++;
-                //  printf("x = %d, y = %d, i = %d, j = %d\n", x, y, i, j);
             }
             y++;
             i++;
         }
 
-        updateDisplay(instruction);
+        updateDisplayNCurses();
+        // printf("\n\ndisplay calls = %d\n\n", ++display_calls);
+        usleep(50000);
         break;
 
     default:
-        puts("\n\n\nDEFAULT \n\n\n");
+        // puts("\n\n\nDEFAULT \n\n\n");
         break;
     }
     return 0;
@@ -161,11 +163,11 @@ int execute(unsigned short instruction[])
 
 void printInstruction(unsigned short instruction[])
 {
-    erase();
+    /*erase();
     printf("\nI: %02x\nX: %02x\nY: %02x\nN: %02x\nNN: %02x\nNNN: %02x\n",
            I, X, Y, N, NN, NNN);
-    printf("program coutner inside instruction display = %d\n", program_counter);
-    refresh();
+    printf("program coutner inside instruction display = %x\n", program_counter);
+    refresh();*/
 }
 
 int main(int argc, char **argv)
@@ -175,7 +177,7 @@ int main(int argc, char **argv)
 
     /* Start curses. Also sets LINES and COLS. */
     // createMatrix();
-    // initscr();
+    initscr();
 
     /* Pass every character immediately, not buffered. */
     // cbreak();
@@ -206,11 +208,12 @@ int main(int argc, char **argv)
         for (int i = 0; i < file_size; i++)
             memory[i + RESERVED_MEMORY] = program_code[i];
         fclose(file);
-        for (int i = RESERVED_MEMORY; i < file_size + RESERVED_MEMORY; i += 2)
+        /*for (int i = RESERVED_MEMORY; i < file_size + RESERVED_MEMORY; i += 2)
         {
             printf("posição %x: ", i);
             printf("%02x %02x\n", memory[i], memory[i + 1]);
-        }
+        }*/
+        // sleep(1);
         /*exit_error(".");
         return 0;*/
     }

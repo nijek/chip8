@@ -38,7 +38,7 @@ NNN: The second, third and fourth nibbles. A 12-bit immediate memory address
 
 extern unsigned char memory[MEMSIZE];
 extern unsigned short program_stack[STACK_SIZE];
-extern unsigned char display[WIDTH][HEIGHT];
+extern unsigned char display[HEIGHT][WIDTH];
 extern unsigned char registers[REGISTER_NUMBER];
 
 /* index register and program counter can address all 4096 memory addresses
@@ -49,4 +49,5 @@ extern unsigned short index_register;
 extern unsigned short processor_clock;
 extern unsigned short delay_timer;
 extern unsigned short sound_timer;
+extern int display_calls;
 #endif

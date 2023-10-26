@@ -1,7 +1,8 @@
 #ifndef DISPLAY
 #define DISPLAY
 
-void updateDisplay(unsigned short instruction[]);
+void updateDisplay();
 void clearScreen();
+void updateDisplayNCurses();
 
 #endif
